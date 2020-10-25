@@ -42,14 +42,14 @@ public class RestaurantUtil {
     private static final int MAX_IMAGE_NUM = 22;
 
     private static final String[] NAME_FIRST_WORDS = {
-            "Foo",
-            "Bar",
-            "Baz",
-            "Qux",
+            "Foozi",
+            "Barily",
+            "Bazo",
+            "Quilux",
             "Fire",
             "Sam's",
             "World Famous",
-            "Google",
+            "Ben's",
             "The Best",
     };
 
