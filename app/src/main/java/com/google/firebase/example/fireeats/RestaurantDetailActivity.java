@@ -1,19 +1,19 @@
 /**
  * Copyright 2017 Google Inc. All Rights Reserved.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.google.firebase.example.fireeats;
+package com.google.firebase.example.fireeats;
 
 import android.content.Context;
 import android.os.Bundle;
@@ -25,6 +25,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -46,6 +47,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.Transaction;
 
 import me.zhanghai.android.materialratingbar.MaterialRatingBar;
 
@@ -54,10 +56,8 @@ public class RestaurantDetailActivity extends AppCompatActivity implements
         EventListener<DocumentSnapshot>,
         RatingDialogFragment.RatingListener {
 
-    private static final String TAG = "RestaurantDetail";
-
     public static final String KEY_RESTAURANT_ID = "key_restaurant_id";
-
+    private static final String TAG = "RestaurantDetail";
     private ImageView mImageView;
     private TextView mNameView;
     private MaterialRatingBar mRatingIndicator;
@@ -80,7 +80,7 @@ public class RestaurantDetailActivity extends AppCompatActivity implements
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_restaurant_detail);
-        
+
         mImageView = findViewById(R.id.restaurant_image);
         mNameView = findViewById(R.id.restaurant_name);
         mRatingIndicator = findViewById(R.id.restaurant_rating);
@@ -165,8 +165,38 @@ public class RestaurantDetailActivity extends AppCompatActivity implements
     }
 
     private Task<Void> addRating(final DocumentReference restaurantRef, final Rating rating) {
-        // TODO(developer): Implement
-        return Tasks.forException(new Exception("not yet implemented"));
+        // Adds User Rating
+        // Crate reference for new rating, for use inside the transaction
+        final DocumentReference ratingRef =
+                restaurantRef.collection("ratings").document();
+
+        // In a transaction, add the new rating and update the aggregate totals
+        return mFirestore.runTransaction(new Transaction.Function<Void>() {
+            @Nullable
+            @Override
+            public Void apply(@NonNull Transaction transaction) throws FirebaseFirestoreException {
+
+                Restaurant restaurant = transaction.get(restaurantRef)
+                        .toObject(Restaurant.class);
+                // Compute new number of ratings
+                int newNumRatings = restaurant.getNumRatings() + 1;
+
+                // compute new average ratings
+                double oldRatingTotal = restaurant.getAvgRating() *
+                        restaurant.getNumRatings();
+                double newAvgRatings = (oldRatingTotal + rating.getRating()) / newNumRatings;
+
+                // set new restaurant info
+                restaurant.setNumRatings(newNumRatings);
+                restaurant.setAvgRating(newAvgRatings);
+
+                // commit to Firestore
+                transaction.set(restaurantRef, restaurant);
+                transaction.set(ratingRef, rating);
+
+                return  null;
+            }
+        });
     }
 
     /**
